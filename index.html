@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SHOP ORIENTE — Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f5f0; --surface: #ffffff; --border: rgba(0,0,0,0.08);
+      --text: #1a1a1a; --muted: #888; --green: #1D9E75; --yellow: #FFE600;
+      --red: #E24B4A; --blue: #378ADD; --amber: #BA7517;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 360px; }
+    .login-logo { width: 48px; height: 48px; background: var(--yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 1.5rem; }
+    .login-card h1 { text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+    .login-card .sub { text-align: center; font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+    .login-card label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; margin-top: 12px; }
+    .login-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+    .login-card input:focus { border-color: var(--green); }
+    .login-btn { width: 100%; margin-top: 1.5rem; padding: 11px; background: var(--text); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+    .login-btn:hover { opacity: 0.85; }
+    .login-error { color: var(--red); font-size: 12px; text-align: center; margin-top: 10px; display: none; }
+
+    #dashboard { display: none; }
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .topbar-logo { width: 32px; height: 32px; background: var(--yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .topbar h2 { font-size: 15px; font-weight: 600; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .user-badge { font-size: 12px; color: var(--muted); background: var(--bg); padding: 4px 10px; border-radius: 20px; }
+    .refresh-btn { font-size: 12px; padding: 6px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; cursor: pointer; }
+    .refresh-btn:hover { background: var(--bg); }
+    .logout-btn { font-size: 12px; padding: 6px 12px; border: none; background: none; cursor: pointer; color: var(--muted); }
+
+    .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; margin-top: 28px; }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+    .card.green { border-left: 3px solid var(--green); }
+    .card.red { border-left: 3px solid var(--red); }
+    .card.blue { border-left: 3px solid var(--blue); }
+    .card.amber { border-left: 3px solid var(--amber); }
+    .card-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .card-value { font-size: 26px; font-weight: 600; line-height: 1; }
+    .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .chart-card h3 { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 14px; }
+
+    .rep-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; gap: 16px; }
+    .rep-badge { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; background: #e1f5ee; }
+    .rep-info h3 { font-size: 16px; font-weight: 600; }
+    .rep-info p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; overflow-x: auto; }
+    .table-card h3 { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 6px 8px; color: var(--muted); font-weight: 400; font-size: 11px; border-bottom: 1px solid var(--border); }
+    td { padding: 8px 8px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+
+    .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+    .badge.active { background: #e1f5ee; color: #0f6e56; }
+    .badge.paused { background: #faeeda; color: #633806; }
+    .badge.closed { background: #f1efe8; color: #5f5e5a; }
+    .badge.under_review { background: #e6f1fb; color: #185fa5; }
+
+    #loading { min-height: calc(100vh - 56px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 14px; }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .last-update { font-size: 11px; color: var(--muted); }
+    .status-paid { color: var(--green); font-weight: 500; }
+    .status-cancelled { color: var(--red); }
+    .status-pending { color: var(--amber); }
+    .err-msg { color: var(--red); font-size: 13px; text-align: center; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🛒</div>
+    <h1>SHOP ORIENTE</h1>
+    <p class="sub">Painel de vendas</p>
+    <label>Usuário</label>
+    <input type="text" id="login-user" placeholder="seu usuário" autocomplete="username" />
+    <label>Senha</label>
+    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter') doLogin()" />
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <p class="login-error" id="login-error">Usuário ou senha incorretos</p>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">🛒</div>
+      <h2>SHOP ORIENTE</h2>
+    </div>
+    <div class="topbar-right">
+      <span class="user-badge" id="user-name"></span>
+      <button class="refresh-btn" onclick="loadData()">↻ Atualizar</button>
+      <button class="logout-btn" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <span id="loading-msg">Carregando dados...</span>
+  </div>
+
+  <div class="main" id="main-content" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <p class="section-title" style="margin:0;">Resumo</p>
+      <span class="last-update" id="last-update"></span>
+    </div>
+
+    <div class="cards-grid" id="cards-resumo"></div>
+
+    <p class="section-title">Reputação</p>
+    <div id="reputacao"></div>
+
+    <p class="section-title">Visão dos anúncios</p>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Status dos anúncios</h3>
+        <div style="position:relative;height:200px;">
+          <canvas id="chart-status" role="img" aria-label="Status dos anúncios"></canvas>
+        </div>
+        <div id="legend-status" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:11px;color:var(--muted);"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Receita por produto</h3>
+        <div style="position:relative;height:200px;">
+          <canvas id="chart-receita" role="img" aria-label="Receita por produto"></canvas>
+        </div>
+        <div id="legend-receita" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:11px;color:var(--muted);"></div>
+      </div>
+    </div>
+
+    <p class="section-title">Lista de anúncios</p>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:42%">Produto</th>
+            <th style="text-align:right">Preço</th>
+            <th style="text-align:right">Vendidos</th>
+            <th style="text-align:right">Estoque</th>
+            <th style="text-align:right">Tipo</th>
+            <th style="text-align:right">Status</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-anuncios"></tbody>
+      </table>
+    </div>
+
+    <p class="section-title">Pedidos recentes</p>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th style="width:45%">Produto</th>
+            <th style="text-align:right">Valor</th>
+            <th style="text-align:right">Status</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-pedidos"></tbody>
+      </table>
+    </div>
+    <div style="height:40px;"></div>
+  </div>
+</div>
+
+<script>
+const USUARIOS = {
+  "saulo":    { senha: "shopOriente2026!", nome: "Saulo" },
+  "reinaldo": { senha: "shopOriente2026!", nome: "Reinaldo" },
+  "renata":   { senha: "shopOriente2026!", nome: "Renata" },
+};
+
+let currentUser = null;
+let statusChartInst = null;
+let receitaChartInst = null;
+
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  if (USUARIOS[user] && USUARIOS[user].senha === pass) {
+    currentUser = { user, nome: USUARIOS[user].nome };
+    sessionStorage.setItem('shopUser', JSON.stringify(currentUser));
+    errEl.style.display = 'none';
+    showDashboard();
+  } else {
+    errEl.style.display = 'block';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('shopUser');
+  currentUser = null;
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('user-name').textContent = currentUser.nome;
+  loadData();
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('loading-msg').textContent = 'Buscando dados do Mercado Livre...';
+
+  try {
+    const res = await fetch('/api/ml');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderDashboard(data);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('last-update').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch (err) {
+    document.getElementById('loading-msg').textContent = '❌ Erro: ' + err.message;
+  }
+}
+
+function renderDashboard(data) {
+  const listings = data.listings || [];
+  const orders = data.orders || [];
+  const paid = orders.filter(o => o.status === 'paid');
+  const cancelled = orders.filter(o => o.status === 'cancelled');
+  const pending = orders.filter(o => o.status === 'pending');
+  const receitaTotal = paid.reduce((s, o) => s + (o.total_amount || 0), 0);
+  const ticketMedio = paid.length ? receitaTotal / paid.length : 0;
+  const active = listings.filter(l => l.status === 'active').length;
+
+  document.getElementById('cards-resumo').innerHTML = [
+    { label: 'Receita total', value: 'R$ ' + Math.round(receitaTotal).toLocaleString('pt-BR'), sub: paid.length + ' pedidos pagos', cls: 'green' },
+    { label: 'Ticket médio', value: 'R$ ' + ticketMedio.toFixed(2), sub: 'por pedido pago', cls: 'blue' },
+    { label: 'Cancelamentos', value: cancelled.length, sub: 'de ' + orders.length + ' total', cls: 'red' },
+    { label: 'Anúncios ativos', value: active, sub: 'de ' + (data.total_items || listings.length) + ' total', cls: 'amber' },
+    { label: 'Pendentes', value: pending.length, sub: 'aguardando pagamento', cls: 'blue' },
+  ].map(c => `
+    <div class="card ${c.cls}">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value">${c.value}</div>
+      <div class="card-sub">${c.sub}</div>
+    </div>
+  `).join('');
+
+  const rep = data.user?.reputation || {};
+  const level = rep.level_id || '';
+  const repTexto = { '5_green': '⭐ Nível 5 — MercadoLíder', '4_light_green': '⭐ Nível 4', '3_yellow': '⚡ Nível 3', '2_orange': '⚠️ Nível 2', '1_red': '❌ Nível 1' };
+  document.getElementById('reputacao').innerHTML = `
+    <div class="rep-card">
+      <div class="rep-badge">🏆</div>
+      <div class="rep-info">
+        <h3>${repTexto[level] || 'Nível ' + level}</h3>
+        <p>Vendas concluídas: ${rep.transactions?.completed?.total ?? '—'} &nbsp;|&nbsp; Cancelamentos: ${rep.transactions?.canceled?.total ?? '—'} &nbsp;|&nbsp; Reclamações: ${rep.transactions?.ratings?.negative ?? '—'}</p>
+      </div>
+    </div>`;
+
+  const statusCount = {};
+  listings.forEach(l => { statusCount[l.status] = (statusCount[l.status] || 0) + 1; });
+  const sLabels = Object.keys(statusCount);
+  const sData = Object.values(statusCount);
+  const sColors = { active: '#1D9E75', paused: '#BA7517', closed: '#888780', under_review: '#378ADD' };
+  const sPT = { active: 'Ativo', paused: 'Pausado', closed: 'Encerrado', under_review: 'Em revisão' };
+  const sBg = sLabels.map(l => sColors[l] || '#888');
+
+  if (statusChartInst) statusChartInst.destroy();
+  statusChartInst = new Chart(document.getElementById('chart-status'), {
+    type: 'doughnut',
+    data: { labels: sLabels, datasets: [{ data: sData, backgroundColor: sBg, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+  document.getElementById('legend-status').innerHTML = sLabels.map((l, i) =>
+    `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:${sBg[i]}"></span>${sPT[l]||l} (${sData[i]})</span>`
+  ).join('');
+
+  const receitaMap = {};
+  paid.forEach(o => {
+    (o.order_items || []).forEach(item => {
+      const t = item.item?.title?.slice(0, 22) || 'Outro';
+      receitaMap[t] = (receitaMap[t] || 0) + ((item.unit_price || 0) * (item.quantity || 1));
+    });
+  });
+  const rLabels = Object.keys(receitaMap);
+  const rData = Object.values(receitaMap);
+  const cores = ['#1D9E75','#378ADD','#BA7517','#D4537E','#7F77DD','#639922','#E24B4A'];
+
+  if (receitaChartInst) receitaChartInst.destroy();
+  receitaChartInst = new Chart(document.getElementById('chart-receita'), {
+    type: 'doughnut',
+    data: { labels: rLabels, datasets: [{ data: rData, backgroundColor: cores, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+  document.getElementById('legend-receita').innerHTML = rLabels.map((l, i) =>
+    `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:${cores[i%cores.length]}"></span>${l} R$${Math.round(rData[i])}</span>`
+  ).join('');
+
+  const typePT = { gold_special: 'Gold Esp.', gold_pro: 'Gold Pro', gold: 'Gold', silver: 'Prata', bronze: 'Bronze', free: 'Grátis' };
+  document.getElementById('tabela-anuncios').innerHTML = listings.map(l => `
+    <tr>
+      <td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${l.title}">${l.title}</td>
+      <td style="text-align:right;">R$ ${Number(l.price||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="text-align:right;">${l.sold_quantity||0}</td>
+      <td style="text-align:right;">${l.available_quantity||0}</td>
+      <td style="text-align:right;color:var(--muted);font-size:11px;">${typePT[l.listing_type_id]||l.listing_type_id||'-'}</td>
+      <td style="text-align:right;"><span class="badge ${l.status}">${sPT[l.status]||l.status}</span></td>
+    </tr>`).join('');
+
+  const orderStatusPT = { paid: 'Pago', cancelled: 'Cancelado', pending: 'Pendente', confirmed: 'Confirmado' };
+  document.getElementById('tabela-pedidos').innerHTML = orders.slice(0, 20).map(o => {
+    const item = (o.order_items||[])[0]?.item?.title?.slice(0,50) || 'N/A';
+    const dt = new Date(o.date_created).toLocaleDateString('pt-BR');
+    const cls = o.status === 'paid' ? 'status-paid' : o.status === 'cancelled' ? 'status-cancelled' : 'status-pending';
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--muted);font-size:12px;">${dt}</td>
+      <td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item}">${item}</td>
+      <td style="text-align:right;">R$ ${Number(o.total_amount||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td style="text-align:right;" class="${cls}">${orderStatusPT[o.status]||o.status}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.onload = () => {
+  const saved = sessionStorage.getItem('shopUser');
+  if (saved) { currentUser = JSON.parse(saved); showDashboard(); }
+};
+</script>
+</body>
+</html>
