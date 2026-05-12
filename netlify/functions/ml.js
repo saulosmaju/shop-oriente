@@ -70,21 +70,27 @@ exports.handler = async (event) => {
     const vendasHoje = orders.filter(o => o.status === "paid" && (o.date_created || "").startsWith(hoje));
     const totalHoje = vendasHoje.reduce((s, o) => s + (o.total_amount || 0), 0);
 
-    // 5. Visitas dos anúncios (últimas 24h)
+    // 5. Visitas dos anúncios (últimos 30 dias por data)
+    let visitasPorDia = {};
     let totalVisitas = 0;
     if (ids.length > 0) {
       try {
         const visitsRes = await fetch(
-          `https://api.mercadolibre.com/items/visits?ids=${ids.join(",")}&last_days=1`,
+          `https://api.mercadolibre.com/items/visits?ids=${ids.join(",")}&last_days=30`,
           { headers: mlHeaders }
         );
         if (visitsRes.ok) {
           const visitsData = await visitsRes.json();
           if (Array.isArray(visitsData)) {
-            totalVisitas = visitsData.reduce((s, v) => s + (v.total_visits || 0), 0);
+            visitsData.forEach(item => {
+              (item.visits_by_day || []).forEach(d => {
+                visitasPorDia[d.date] = (visitasPorDia[d.date] || 0) + (d.total || 0);
+              });
+              totalVisitas += (item.total_visits || 0);
+            });
           }
         }
-      } catch { totalVisitas = 0; }
+      } catch { visitasPorDia = {}; totalVisitas = 0; }
     }
 
     return {
@@ -103,7 +109,8 @@ exports.handler = async (event) => {
           visitas: totalVisitas,
           vendas_valor: totalHoje,
           vendas_qtd: vendasHoje.length
-        }
+        },
+        visitas_por_dia: visitasPorDia
       })
     };
 
