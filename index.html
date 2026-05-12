@@ -129,6 +129,14 @@
     <p class="section-title">Reputação</p>
     <div id="reputacao"></div>
 
+    <p class="section-title">Hoje</p>
+    <div class="chart-card" style="margin-bottom:16px;">
+      <h3>Visitas vs vendas do dia (R$)</h3>
+      <div style="position:relative;height:220px;">
+        <canvas id="chart-hoje" role="img" aria-label="Visitas e vendas do dia"></canvas>
+      </div>
+    </div>
+
     <p class="section-title">Visão dos anúncios</p>
     <div class="charts-grid">
       <div class="chart-card">
@@ -140,7 +148,7 @@
       </div>
       <div class="chart-card">
         <h3>Receita por produto</h3>
-        <div style="position:relative;height:200px;">
+        <div style="position:relative;height:260px;">
           <canvas id="chart-receita" role="img" aria-label="Receita por produto"></canvas>
         </div>
         <div id="legend-receita" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:11px;color:var(--muted);"></div>
@@ -239,7 +247,38 @@ async function loadData() {
   }
 }
 
+function renderHoje(hoje) {
+  const labels = ["Visitas hoje", "Vendas hoje (R$)"];
+  const valores = [hoje.visitas || 0, Math.round(hoje.vendas_valor || 0)];
+  const cores = ["#378ADD", "#1D9E75"];
+
+  if (hojeChartInst) hojeChartInst.destroy();
+  hojeChartInst = new Chart(document.getElementById("chart-hoje"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: cores,
+        borderRadius: 6,
+        borderWidth: 0,
+        barThickness: 60
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 13 } } },
+        y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
 function renderDashboard(data) {
+  renderHoje(data.hoje || {});
   const listings = data.listings || [];
   const orders = data.orders || [];
   const paid = orders.filter(o => o.status === 'paid');
@@ -306,13 +345,18 @@ function renderDashboard(data) {
 
   if (receitaChartInst) receitaChartInst.destroy();
   receitaChartInst = new Chart(document.getElementById('chart-receita'), {
-    type: 'doughnut',
-    data: { labels: rLabels, datasets: [{ data: rData, backgroundColor: cores, borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    type: 'bar',
+    data: { labels: rLabels, datasets: [{ data: rData, backgroundColor: cores, borderWidth: 0, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, callback: v => 'R$'+v } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
   });
-  document.getElementById('legend-receita').innerHTML = rLabels.map((l, i) =>
-    `<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:${cores[i%cores.length]}"></span>${l} R$${Math.round(rData[i])}</span>`
-  ).join('');
+  document.getElementById('legend-receita').innerHTML = '';
 
   const typePT = { gold_special: 'Gold Esp.', gold_pro: 'Gold Pro', gold: 'Gold', silver: 'Prata', bronze: 'Bronze', free: 'Grátis' };
   document.getElementById('tabela-anuncios').innerHTML = listings.map(l => `
