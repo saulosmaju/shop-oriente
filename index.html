@@ -134,8 +134,15 @@
       <select id="mes-select" onchange="renderMensal(allOrders)" style="font-size:12px;padding:4px 8px;width:auto;"></select>
     </div>
     <div class="chart-card" style="margin-bottom:16px;">
-      <div style="position:relative;height:240px;">
+      <h3 style="font-size:13px;font-weight:500;color:var(--muted);margin-bottom:14px;">Vendas em R$ por dia</h3>
+      <div style="position:relative;height:220px;">
         <canvas id="chart-mensal" role="img" aria-label="Vendas por dia do mês"></canvas>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:16px;">
+      <h3 style="font-size:13px;font-weight:500;color:var(--muted);margin-bottom:14px;">Visitas por dia</h3>
+      <div style="position:relative;height:220px;">
+        <canvas id="chart-visitas" role="img" aria-label="Visitas por dia do mês"></canvas>
       </div>
     </div>
 
@@ -203,6 +210,7 @@ let currentUser = null;
 let statusChartInst = null;
 let receitaChartInst = null;
 let hojeChartInst = null;
+  let visitasChartInst = null;
 
 function doLogin() {
   const user = document.getElementById('login-user').value.trim().toLowerCase();
@@ -270,15 +278,17 @@ function buildMesOptions(orders) {
   });
 }
 
+let visitasPorDiaGlobal = {};
+
 function renderMensal(orders) {
   const sel = document.getElementById('mes-select');
   const mesSel = sel?.value || new Date().toISOString().slice(0,7);
   const [ano, mes] = mesSel.split('-').map(Number);
   const diasNoMes = new Date(ano, mes, 0).getDate();
 
+  // Vendas por dia
   const vendasDia = {};
   for (let d = 1; d <= diasNoMes; d++) vendasDia[d] = 0;
-
   orders.filter(o => o.status === 'paid').forEach(o => {
     const d = new Date(o.date_created);
     if (d.getFullYear() === ano && d.getMonth()+1 === mes) {
@@ -286,8 +296,11 @@ function renderMensal(orders) {
     }
   });
 
-  const labels = Object.keys(vendasDia).map(d => d + '/' + String(mes).padStart(2,'0'));
-  const valores = Object.values(vendasDia).map(v => Math.round(v));
+  const labels = [];
+  for (let d = 1; d <= diasNoMes; d++) {
+    labels.push(d + '/' + String(mes).padStart(2,'0'));
+  }
+  const valoresVendas = Object.values(vendasDia).map(v => Math.round(v));
 
   if (hojeChartInst) hojeChartInst.destroy();
   hojeChartInst = new Chart(document.getElementById('chart-mensal'), {
@@ -295,10 +308,9 @@ function renderMensal(orders) {
     data: {
       labels,
       datasets: [{
-        data: valores,
-        backgroundColor: valores.map(v => v > 0 ? '#1D9E75' : 'rgba(0,0,0,0.06)'),
-        borderRadius: 4,
-        borderWidth: 0
+        data: valoresVendas,
+        backgroundColor: valoresVendas.map(v => v > 0 ? '#1D9E75' : 'rgba(0,0,0,0.06)'),
+        borderRadius: 4, borderWidth: 0
       }]
     },
     options: {
@@ -310,10 +322,39 @@ function renderMensal(orders) {
       }
     }
   });
+
+  // Visitas por dia
+  const visitasDia = [];
+  for (let d = 1; d <= diasNoMes; d++) {
+    const key = ano + '-' + String(mes).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    visitasDia.push(visitasPorDiaGlobal[key] || 0);
+  }
+
+  if (visitasChartInst) visitasChartInst.destroy();
+  visitasChartInst = new Chart(document.getElementById('chart-visitas'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: visitasDia,
+        backgroundColor: visitasDia.map(v => v > 0 ? '#378ADD' : 'rgba(0,0,0,0.06)'),
+        borderRadius: 4, borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 45 } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
 }
 
 function renderDashboard(data) {
   allOrders = data.orders || [];
+  visitasPorDiaGlobal = data.visitas_por_dia || {};
   buildMesOptions(allOrders);
   renderMensal(allOrders);
   const listings = data.listings || [];
