@@ -75,16 +75,37 @@ exports.handler = async (event) => {
     let totalVisitas = 0;
     if (ids.length > 0) {
       try {
-        const visitsRes = await fetch(
-          `https://api.mercadolibre.com/items/visits?ids=${ids.join(",")}&last_days=30`,
-          { headers: mlHeaders }
-        );
-        if (visitsRes.ok) {
-          const visitsData = await visitsRes.json();
-          if (Array.isArray(visitsData)) {
-            visitsData.forEach(item => {
-              (item.visits_by_day || []).forEach(d => {
-                visitasPorDia[d.date] = (visitasPorDia[d.date] || 0) + (d.total || 0);
+        // Buscar visitas de cada item individualmente para garantir visits_by_day
+        for (const id of ids.slice(0, 10)) {
+          try {
+            const vRes = await fetch(
+              `https://api.mercadolibre.com/items/${id}/visits/time_window?last=30&unit=day`,
+              { headers: mlHeaders }
+            );
+            if (vRes.ok) {
+              const vData = await vRes.json();
+              (vData.results || []).forEach(d => {
+                const date = d.date ? d.date.slice(0,10) : null;
+                if (date) visitasPorDia[date] = (visitasPorDia[date] || 0) + (d.total || 0);
+              });
+              totalVisitas += (vData.total_visits || 0);
+            }
+          } catch {}
+        }
+        // Fallback: endpoint batch
+        if (Object.keys(visitasPorDia).length === 0) {
+          const visitsRes = await fetch(
+            `https://api.mercadolibre.com/items/visits?ids=${ids.join(",")}&last_days=30`,
+            { headers: mlHeaders }
+          );
+          if (visitsRes.ok) {
+            const visitsData = await visitsRes.json();
+            const arr = Array.isArray(visitsData) ? visitsData : (visitsData.results || []);
+            arr.forEach(item => {
+              const byDay = item.visits_by_day || item.results || [];
+              byDay.forEach(d => {
+                const date = (d.date || d.period || '').slice(0,10);
+                if (date) visitasPorDia[date] = (visitasPorDia[date] || 0) + (d.total || d.quantity || 0);
               });
               totalVisitas += (item.total_visits || 0);
             });
