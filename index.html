@@ -129,11 +129,13 @@
     <p class="section-title">Reputação</p>
     <div id="reputacao"></div>
 
-    <p class="section-title">Hoje</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:28px;margin-bottom:12px;">
+      <p class="section-title" style="margin:0;">Vendas do mês</p>
+      <select id="mes-select" onchange="renderMensal(allOrders)" style="font-size:12px;padding:4px 8px;width:auto;"></select>
+    </div>
     <div class="chart-card" style="margin-bottom:16px;">
-      <h3>Visitas vs vendas do dia (R$)</h3>
-      <div style="position:relative;height:220px;">
-        <canvas id="chart-hoje" role="img" aria-label="Visitas e vendas do dia"></canvas>
+      <div style="position:relative;height:240px;">
+        <canvas id="chart-mensal" role="img" aria-label="Vendas por dia do mês"></canvas>
       </div>
     </div>
 
@@ -148,7 +150,7 @@
       </div>
       <div class="chart-card">
         <h3>Receita por produto</h3>
-        <div style="position:relative;height:260px;">
+        <div style="position:relative;height:280px;">
           <canvas id="chart-receita" role="img" aria-label="Receita por produto"></canvas>
         </div>
         <div id="legend-receita" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:11px;color:var(--muted);"></div>
@@ -248,38 +250,72 @@ async function loadData() {
   }
 }
 
-function renderHoje(hoje) {
-  const labels = ["Visitas hoje", "Vendas hoje (R$)"];
-  const valores = [hoje.visitas || 0, Math.round(hoje.vendas_valor || 0)];
-  const cores = ["#378ADD", "#1D9E75"];
+let allOrders = [];
+
+function buildMesOptions(orders) {
+  const meses = {};
+  orders.forEach(o => {
+    const d = new Date(o.date_created);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    meses[key] = label;
+  });
+  const sel = document.getElementById('mes-select');
+  sel.innerHTML = '';
+  Object.keys(meses).sort().reverse().forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = meses[k].charAt(0).toUpperCase() + meses[k].slice(1);
+    sel.appendChild(opt);
+  });
+}
+
+function renderMensal(orders) {
+  const sel = document.getElementById('mes-select');
+  const mesSel = sel?.value || new Date().toISOString().slice(0,7);
+  const [ano, mes] = mesSel.split('-').map(Number);
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+
+  const vendasDia = {};
+  for (let d = 1; d <= diasNoMes; d++) vendasDia[d] = 0;
+
+  orders.filter(o => o.status === 'paid').forEach(o => {
+    const d = new Date(o.date_created);
+    if (d.getFullYear() === ano && d.getMonth()+1 === mes) {
+      vendasDia[d.getDate()] = (vendasDia[d.getDate()] || 0) + (o.total_amount || 0);
+    }
+  });
+
+  const labels = Object.keys(vendasDia).map(d => d + '/' + String(mes).padStart(2,'0'));
+  const valores = Object.values(vendasDia).map(v => Math.round(v));
 
   if (hojeChartInst) hojeChartInst.destroy();
-  hojeChartInst = new Chart(document.getElementById("chart-hoje"), {
-    type: "bar",
+  hojeChartInst = new Chart(document.getElementById('chart-mensal'), {
+    type: 'bar',
     data: {
       labels,
       datasets: [{
         data: valores,
-        backgroundColor: cores,
-        borderRadius: 6,
-        borderWidth: 0,
-        barThickness: 60
+        backgroundColor: valores.map(v => v > 0 ? '#1D9E75' : 'rgba(0,0,0,0.06)'),
+        borderRadius: 4,
+        borderWidth: 0
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 13 } } },
-        y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 11 } } }
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 45 } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, callback: v => 'R$'+v } }
       }
     }
   });
 }
 
 function renderDashboard(data) {
-  renderHoje(data.hoje || {});
+  allOrders = data.orders || [];
+  buildMesOptions(allOrders);
+  renderMensal(allOrders);
   const listings = data.listings || [];
   const orders = data.orders || [];
   const paid = orders.filter(o => o.status === 'paid');
@@ -340,8 +376,9 @@ function renderDashboard(data) {
       receitaMap[t] = (receitaMap[t] || 0) + ((item.unit_price || 0) * (item.quantity || 1));
     });
   });
-  const rLabels = Object.keys(receitaMap);
-  const rData = Object.values(receitaMap);
+  const receitaSorted = Object.entries(receitaMap).sort((a,b) => b[1]-a[1]);
+  const rLabels = receitaSorted.map(e => e[0]);
+  const rData = receitaSorted.map(e => Math.round(e[1]));
   const cores = ['#1D9E75','#378ADD','#BA7517','#D4537E','#7F77DD','#639922','#E24B4A'];
 
   if (receitaChartInst) receitaChartInst.destroy();
