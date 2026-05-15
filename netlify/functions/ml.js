@@ -1,9 +1,8 @@
-const ACCESS_TOKEN = "APP_USR-3255576921796668-051120-f67f680861fd359c58e74c76e519686b-3296567360";
-const REFRESH_TOKEN = "TG-6a026eb5e018440001cc99b5-3296567360";
-const CLIENT_ID = "3255576921796668";
-const CLIENT_SECRET = "hR225NknGGDvqJAUV90GkdwjApYJ4Zhp";
+const CLIENT_ID = process.env.ML_CLIENT_ID;
+const CLIENT_SECRET = process.env.ML_CLIENT_SECRET;
 
-let cachedToken = ACCESS_TOKEN;
+let cachedToken = process.env.ML_ACCESS_TOKEN;
+let cachedRefresh = process.env.ML_REFRESH_TOKEN;
 let tokenExpiry = Date.now() + (5 * 60 * 60 * 1000);
 
 async function getValidToken(fetch) {
@@ -12,12 +11,13 @@ async function getValidToken(fetch) {
     const res = await fetch("https://api.mercadolibre.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `grant_type=refresh_token&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&refresh_token=${REFRESH_TOKEN}`
+      body: `grant_type=refresh_token&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&refresh_token=${cachedRefresh}`
     });
     if (!res.ok) return cachedToken;
     const data = await res.json();
     if (data.access_token) {
       cachedToken = data.access_token;
+      if (data.refresh_token) cachedRefresh = data.refresh_token;
       tokenExpiry = Date.now() + ((data.expires_in || 21600) * 1000);
     }
     return cachedToken;
